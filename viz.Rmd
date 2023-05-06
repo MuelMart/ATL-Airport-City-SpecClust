@@ -1,0 +1,124 @@
+---
+title: "Spec Clust Viz"
+author: "Samuel Martinez, Malavika Murali, Yuxiang Zhao"
+date: "2023-04-12"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(dplyr)
+library(tmap)
+library(ggdark)
+library(sf)
+library(tmap)
+library(kableExtra)
+```
+
+```{r}
+data <- st_read('./joined_data.shp')
+```
+
+```{r}
+tmap_mode('plot')
+
+tmap_options(bg.color = '#f0f0f0',
+             legend.position = c('left','bottom'), 
+             legend.bg.color = '#cee0db', 
+             legend.frame = 'black',
+             main.title.size = 1,
+             main.title.fontface = 'bold',
+             main.title.position = c('center', 'top'),
+             frame = FALSE
+)
+
+
+breaks <- c(0.2,0.4,0.6,0.8,1)
+novehi <- tm_shape(data) +
+  tm_polygons(col = 'P_NoVehi_1', title = "State Percentile", style = 'fixed', breaks = breaks) +
+  tm_layout(main.title = 'Percent with No Vehicle') +
+  tm_text(text = 'neighborho')
+tmap_save(novehi, './novehicle.png')
+
+rentbu <- tm_shape(data) +
+  tm_polygons(col = 'P_RentBu_1', title = "State Percentile", style = 'fixed', breaks = breaks) +
+  tm_layout(main.title = 'Percent Rent Burdened') +
+  tm_text(text = 'neighborho')
+
+tmap_save(rentbu, './rentburden.png')
+
+withad <- tm_shape(data) +
+  tm_polygons(col = 'P_WithAD_1', title = "State Percentile", style = 'fixed', breaks = breaks) +
+  tm_layout(main.title = 'Percent with Disability') +
+  tm_text(text = 'neighborho')
+tmap_save(withad,'./withadisability.png')
+
+incomedi <- tm_shape(data) +
+  tm_polygons(col = 'IncomeDi_1', lwd = 1.5, title = "State Percentile", style = 'fixed', breaks = breaks) +
+  tm_layout(main.title = 'Income Disparity (Gini Index)') +
+  tm_text(text = 'neighborho')
+tmap_save(incomedi,'./incomedisparity.png')
+
+unemployme <- tm_shape(data) +
+  tm_polygons(col = 'Unemploy_1', lwd = 1.5, title = "State Percentile", style = 'fixed', breaks = breaks) +
+  tm_layout(main.title = 'Unemployment Rate') +
+  tm_text(text = 'neighborho')
+tmap_save(unemployme,'./unemployment.png')
+
+medianhocome <- tm_shape(data) +
+  tm_polygons(col = 'MedianHo_1', lwd = 1.5, title = "State Percentile", style = 'fixed', breaks = breaks) +
+  tm_layout(main.title = 'Median Household Income') +
+  tm_text(text = 'neighborho')
+tmap_save(medianhocome,'./medianincome.png')
+
+medianhovalue <- tm_shape(data) +
+  tm_polygons(col = 'MedianHo_2', lwd = 1.5, title = "State Percentile", style = 'fixed', breaks = breaks) +
+  tm_layout(main.title = 'Median Home Value') +
+  tm_text(text = 'neighborho')
+tmap_save(medianhovalue,'./medianvalue.png')
+
+grossren <- tm_shape(data) +
+  tm_polygons(col = 'GrossRen_1', lwd = 1.5, title = "State Percentile", style = 'fixed', breaks = breaks) +
+  tm_layout(main.title = 'Mean Gross Rent') +
+  tm_text(text = 'neighborho')
+tmap_save(grossren,'./grossrent.png')
+
+singleparent <- tm_shape(data) +
+  tm_polygons(col = 'P_Single_1', lwd = 1.5, title = "State Percentile", style = 'fixed', breaks = breaks) +
+  tm_layout(main.title = 'Percent Single Parent Households') +
+  tm_text(text = 'neighborho')
+tmap_save(singleparent,'./singleparent.png')
+
+
+```
+
+```{r}
+#Plot characteristics
+table <- data %>%
+  st_drop_geometry() %>%
+  select(-c('Shape_Leng','neighbor_1','Shape_Area')) %>%
+  filter((`neighborho` %in% c(6,4,2)) == FALSE) %>%
+  mutate(across(-neighborho, ~ round(.x,2))) %>%
+  select(-ends_with('_1')) %>%
+  select(-ends_with('_2')) %>%
+  rename('Region ID' = 'neighborho') %>%
+  rename('Income Disparity (Gini Index)' = 'IncomeDisp') %>%
+  rename('Unemployment Rate' = 'Unemployme') %>%
+  rename('Percent with a Disability'='P_WithADis') %>%
+  rename('Median Household Income'= 'MedianHous') %>%
+  rename('Median Home Value' = 'MedianHome') %>%
+  rename('Percent with No Vehicle' = 'P_NoVehicl') %>%
+  rename('Average Rent' = 'GrossRentE') %>%
+  rename('Percent of Singe Parent Households' = 'P_SinglePa') %>%
+  rename('Percent Rent Burdened' = 'P_RentBurd') %>%
+  arrange(`Region ID`)
+
+kabletable <- kable(table, "html") %>%
+  kable_styling() %>%
+  row_spec(5,background = '#db6083', color ='white')
+kabletable
+save_kable(kabletable,'table.png')
+```

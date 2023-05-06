@@ -1,0 +1,61 @@
+library(tidyverse)
+library(tidycensus)
+library(sf)
+
+#Get API Key
+key <- Sys.getenv('census_api')
+
+acs_vars <- c(
+  'IncomeDisparity' = 'B19083_001',
+  
+  'UnemploymentRate' = 'S2301_C04_001',
+  
+  'P_WithADisability' = 'S1810_C03_001',
+  
+  'MedianHouseholdIncome' = 'S1901_C01_012',
+  
+  'P_SingleMaleHHChildren' = 'DP02_0007P', #Add this to P_SingleFemaleHHChildren
+  'P_SingleFemaleHHChildren' = 'DP02_0011P', #Add this to P_SingleMaleHHChildren
+  
+  'MedianHomePrice' = 'DP04_0089',
+  'P_30-34Rent' = 'DP04_0141P', #Add this P_35+Rent
+  'P_35+Rent' = 'DP04_0142P', #Add this to P_30-34Rent
+  'P_NoVehicleAvailable' = 'DP04_0058P',
+  'GrossRent' = 'DP04_0134'
+)
+
+#Activate census API Key
+census_api_key(key)
+
+#Get ACS tracts
+tract_geom <- get_acs(geography = 'tract', 
+                      variables = acs_vars, 
+                      output = 'wide', 
+                      state = 'GA', 
+                      year = 2021,
+                      geometry = TRUE) %>%
+  select(-ends_with('M'))
+
+#Perform geoprocessing and value imputation
+#Define function for mean imputation
+impute <- function(vec){
+  mean <- mean(vec, na.rm = TRUE)
+  vec[is.na(vec)] <- mean
+  return(vec)
+}
+
+tract_final <- tract_geom %>%
+  #Impute missing values
+  mutate(across(.cols = names(acs_vars) %>% paste0('E'), .fns = impute)) %>%
+
+  mutate('P_SingleParent' = `P_SingleMaleHHChildrenE` + `P_SingleFemaleHHChildrenE`, .keep = 'unused') %>%
+  mutate('P_RentBurdened' = `P_30-34RentE` + `P_35+RentE`, .keep= 'unused') %>%
+  
+  mutate(across(.cols = -c("NAME","GEOID","geometry"), .fns = cume_dist, .names = "{.col}_pctile")) %>%
+  
+  relocate(geometry, .after = last_col())
+
+#Write to geojson
+st_write(tract_final, paste0(getwd(), '/tracts.geojson'), driver = 'GEOJson', delete_dsn = TRUE)
+
+
